@@ -1,0 +1,19 @@
+# Python 
+backend/venv/
+backend/__pycache__/
+backend/.pytest_cache/
+backend/.env
+backend/uploads/
+*.duckdb
+*.duckdb.wal
+
+# Node
+node_modules/
+dist/
+dist-ssr/
+*.local
+
+# IDEs
+.vscode/
+.idea/
+.DS_Store

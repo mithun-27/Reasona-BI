@@ -1,0 +1,9 @@
+fastapi
+uvicorn
+pandas
+duckdb
+langchain
+langgraph
+requests
+python-dotenv
+openai
