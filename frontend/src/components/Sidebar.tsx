@@ -1,35 +1,68 @@
-import React from 'react';
-import { Database, LayoutDashboard, MessageSquare, Settings } from 'lucide-react';
+import { LayoutDashboard, Database, MessageSquare, Settings, Sparkles } from 'lucide-react';
 
 export const Sidebar = () => {
-    return (
-        <aside className="w-64 flex-shrink-0 glass-panel h-[calc(100vh-2rem)] m-4 flex flex-col items-center py-8 relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-primary/20 rounded-full blur-3xl -mr-16 -mt-16 pointer-events-none"></div>
+    const navItems = [
+        { label: 'Dashboard', icon: <LayoutDashboard size={18} />, active: true },
+        { label: 'Data Sources', icon: <Database size={18} />, active: false },
+        { label: 'Agent Chat', icon: <MessageSquare size={18} />, active: false },
+    ];
 
-            <div className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-secondary mb-12">
-                ReasonaBI
+    return (
+        <aside style={{
+            width: '220px', flexShrink: 0,
+            background: 'linear-gradient(180deg, #0f1120 0%, #0a0c15 100%)',
+            borderRight: '1px solid rgba(255,255,255,0.06)',
+            height: '100vh', display: 'flex', flexDirection: 'column',
+            padding: '1.5rem 0'
+        }}>
+            {/* Logo */}
+            <div style={{
+                padding: '0 1.5rem', marginBottom: '2.5rem',
+                display: 'flex', alignItems: 'center', gap: '0.5rem'
+            }}>
+                <div style={{
+                    width: '2rem', height: '2rem', borderRadius: '0.5rem',
+                    background: 'linear-gradient(135deg, #6d28d9, #4f46e5)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center'
+                }}>
+                    <Sparkles size={14} color="#fff" />
+                </div>
+                <span style={{ fontSize: '1.15rem', fontWeight: 700, letterSpacing: '-0.02em' }}>
+                    Reasona<span style={{ color: '#6d28d9' }}>BI</span>
+                </span>
             </div>
 
-            <nav className="flex flex-col gap-4 w-full px-6">
-                <a href="#" className="flex items-center gap-3 px-4 py-3 rounded-xl bg-white/10 text-white font-medium shadow-[inset_0_1px_0_rgba(255,255,255,0.1)]">
-                    <LayoutDashboard size={20} className="text-primary" />
-                    Dashboard
-                </a>
-                <a href="#" className="flex items-center gap-3 px-4 py-3 rounded-xl text-white/70 hover:bg-white/5 hover:text-white transition-all font-medium">
-                    <Database size={20} />
-                    Data Sources
-                </a>
-                <a href="#" className="flex items-center gap-3 px-4 py-3 rounded-xl text-white/70 hover:bg-white/5 hover:text-white transition-all font-medium">
-                    <MessageSquare size={20} />
-                    Agent Chat
-                </a>
+            {/* Nav */}
+            <nav style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', padding: '0 0.75rem' }}>
+                {navItems.map((item, i) => (
+                    <button key={i} style={{
+                        display: 'flex', alignItems: 'center', gap: '0.75rem',
+                        padding: '0.65rem 0.75rem', borderRadius: '0.5rem',
+                        border: 'none', cursor: 'pointer', width: '100%', textAlign: 'left',
+                        fontSize: '0.85rem', fontWeight: item.active ? 600 : 400,
+                        background: item.active ? 'rgba(109,40,217,0.15)' : 'transparent',
+                        color: item.active ? '#a78bfa' : 'rgba(255,255,255,0.5)',
+                        transition: 'all 0.15s'
+                    }}>
+                        <span style={{ opacity: item.active ? 1 : 0.6 }}>{item.icon}</span>
+                        {item.label}
+                    </button>
+                ))}
             </nav>
 
-            <div className="mt-auto w-full px-6">
-                <a href="#" className="flex items-center gap-3 px-4 py-3 rounded-xl text-white/70 hover:bg-white/5 hover:text-white transition-all font-medium">
-                    <Settings size={20} />
+            {/* Bottom */}
+            <div style={{ marginTop: 'auto', padding: '0 0.75rem' }}>
+                <button style={{
+                    display: 'flex', alignItems: 'center', gap: '0.75rem',
+                    padding: '0.65rem 0.75rem', borderRadius: '0.5rem',
+                    border: 'none', cursor: 'pointer', width: '100%', textAlign: 'left',
+                    fontSize: '0.85rem', fontWeight: 400,
+                    background: 'transparent', color: 'rgba(255,255,255,0.4)',
+                    transition: 'all 0.15s'
+                }}>
+                    <Settings size={18} style={{ opacity: 0.6 }} />
                     Settings
-                </a>
+                </button>
             </div>
         </aside>
     );

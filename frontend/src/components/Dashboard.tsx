@@ -1,116 +1,177 @@
-import React, { useState } from 'react';
-import { UploadCloud, FileText, CheckCircle } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { UploadCloud, AlertCircle, Loader } from 'lucide-react';
+import { KPICards } from './KPICards';
+import { AutoChart } from './AutoChart';
+import { GaugeChart } from './GaugeChart';
+import { DataTable } from './DataTable';
+import { FilterBar } from './FilterBar';
+
+interface AnalysisData {
+    kpis: any[];
+    charts: any[];
+    filters: any[];
+    data_preview: Record<string, any>[];
+    column_names: string[];
+    table_name: string;
+    dashboard_title: string;
+    row_count: number;
+    col_count: number;
+}
 
 export const Dashboard = () => {
     const [file, setFile] = useState<File | null>(null);
     const [uploading, setUploading] = useState(false);
-    const [success, setSuccess] = useState(false);
+    const [error, setError] = useState('');
+    const [analysis, setAnalysis] = useState<AnalysisData | null>(null);
+    const [activeFilters, setActiveFilters] = useState<Record<string, string[]>>({});
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
+    const handleBrowseClick = () => fileInputRef.current?.click();
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (e.target.files && e.target.files[0]) {
-            setFile(e.target.files[0]);
-        }
+        if (e.target.files?.[0]) { setFile(e.target.files[0]); setError(''); }
+    };
+    const handleFilterChange = (col: string, vals: string[]) => {
+        setActiveFilters(p => ({ ...p, [col]: vals }));
     };
 
     const handleUpload = async () => {
         if (!file) return;
-        setUploading(true);
-        const formData = new FormData();
-        formData.append('file', file);
-
+        setUploading(true); setError('');
+        const fd = new FormData();
+        fd.append('file', file);
         try {
-            const response = await fetch('http://localhost:8000/api/upload', {
-                method: 'POST',
-                body: formData,
-            });
-            if (response.ok) {
-                setSuccess(true);
+            const res = await fetch('http://localhost:8000/api/upload', { method: 'POST', body: fd });
+            if (res.ok) {
+                const data = await res.json();
+                setFile(null);
+                if (fileInputRef.current) fileInputRef.current.value = '';
+                if (data.analysis) { setAnalysis(data.analysis); setActiveFilters({}); }
+            } else {
+                const e = await res.json();
+                setError(e.detail || 'Upload failed');
             }
-        } catch (error) {
-            console.error('Upload failed', error);
-        } finally {
-            setUploading(false);
-        }
+        } catch { setError('Backend not reachable'); }
+        finally { setUploading(false); }
     };
 
-    return (
-        <div className="flex-1 p-8 overflow-y-auto">
-            <header className="mb-10 flex justify-between items-end">
-                <div>
-                    <h1 className="text-4xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-white/60 mb-2">
-                        AI Data Intelligence
+    const gauges = analysis?.charts.filter(c => c.type === 'gauge') || [];
+    const charts = analysis?.charts.filter(c => c.type !== 'gauge') || [];
+
+    // ─── Landing ───
+    if (!analysis) {
+        return (
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '3rem', height: '100vh' }}>
+                <div style={{ maxWidth: '500px', textAlign: 'center' }}>
+                    <div style={{
+                        width: '5rem', height: '5rem', borderRadius: '1rem', margin: '0 auto 2rem',
+                        background: 'rgba(109,40,217,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#6d28d9'
+                    }}>
+                        <UploadCloud size={36} />
+                    </div>
+                    <h1 style={{ fontSize: '1.75rem', fontWeight: 700, marginBottom: '0.5rem', color: '#f1f5f9' }}>
+                        Upload Your Dataset
                     </h1>
-                    <p className="text-white/60 text-lg">Upload data for the Agent to analyze autonomously.</p>
-                </div>
-                <div className="flex gap-4">
-                    <button className="btn-primary flex items-center gap-2">
-                        <FileText size={18} />
-                        Generate Report
+                    <p style={{ color: 'rgba(255,255,255,0.4)', marginBottom: '2rem', lineHeight: 1.6 }}>
+                        Upload a CSV or Excel file. Our AI will automatically preprocess your data, detect patterns, and generate an interactive dashboard.
+                    </p>
+
+                    <input ref={fileInputRef} type="file" accept=".csv,.xlsx" onChange={handleFileChange} style={{ display: 'none' }} />
+                    <button onClick={handleBrowseClick} style={{
+                        padding: '0.75rem 2.5rem', background: '#6d28d9', color: '#fff',
+                        border: 'none', borderRadius: '0.5rem', fontWeight: 600, fontSize: '0.95rem',
+                        cursor: 'pointer', boxShadow: '0 4px 20px rgba(109,40,217,0.4)'
+                    }}>
+                        Choose File
                     </button>
-                </div>
-            </header>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                {/* Upload Widget */}
-                <div className="glass-panel p-8 col-span-1 flex flex-col items-center justify-center text-center min-h-[300px] relative overflow-hidden group">
-                    <div className="absolute inset-0 bg-gradient-to-br from-primary/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-
-                    {success ? (
-                        <div className="flex flex-col items-center gap-4 text-emerald-400">
-                            <CheckCircle size={48} />
-                            <h3 className="text-xl font-semibold">Data Ingested Successfully</h3>
-                            <p className="text-white/60 text-sm">Agents have processed your data.</p>
+                    {file && (
+                        <div style={{ marginTop: '1.5rem' }}>
+                            <div style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.6)', marginBottom: '0.75rem' }}>📄 {file.name}</div>
+                            <button onClick={handleUpload} disabled={uploading} style={{
+                                padding: '0.6rem 2rem', border: '1px solid #6d28d9', color: '#a78bfa',
+                                background: 'transparent', borderRadius: '0.5rem', cursor: uploading ? 'wait' : 'pointer'
+                            }}>
+                                {uploading ? (<span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}><Loader size={14} style={{ animation: 'spin 1s linear infinite' }} /> Analyzing...</span>) : 'Generate Dashboard'}
+                            </button>
                         </div>
-                    ) : (
-                        <>
-                            <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center mb-6 text-primary group-hover:scale-110 transition-transform">
-                                <UploadCloud size={32} />
-                            </div>
-                            <h3 className="text-xl font-semibold mb-2">Upload Data Source</h3>
-                            <p className="text-white/50 text-sm mb-6 max-w-[200px]">
-                                Support for CSV or Excel files. Intelligence agents will auto-detect schema.
-                            </p>
-
-                            <input type="file" id="data-upload" className="hidden" accept=".csv,.xlsx" onChange={handleFileChange} />
-                            <label htmlFor="data-upload" className="btn-primary cursor-pointer mb-2">
-                                Browse Files
-                            </label>
-                            {file && <div className="text-sm text-white/70 mt-4">{file.name}</div>}
-                            {file && (
-                                <button onClick={handleUpload} disabled={uploading} className="mt-4 px-4 py-1 border border-primary/50 text-primary rounded-lg hover:bg-primary/10">
-                                    {uploading ? 'Ingesting...' : 'Confirm Upload'}
-                                </button>
-                            )}
-                        </>
                     )}
-                </div>
-
-                {/* Agent Overview / Quick Stats */}
-                <div className="glass-panel p-8 col-span-2">
-                    <h3 className="text-xl font-semibold mb-6 flex items-center gap-2">
-                        <div className="w-2 h-2 rounded-full bg-secondary shadow-[0_0_10px_rgba(14,165,233,0.8)]"></div>
-                        System Intelligence Overview
-                    </h3>
-                    <div className="grid grid-cols-3 gap-6">
-                        <div className="bg-black/20 rounded-xl p-6 border border-white/5">
-                            <div className="text-white/50 text-sm mb-2">Active Agents</div>
-                            <div className="text-3xl font-bold">3</div>
-                        </div>
-                        <div className="bg-black/20 rounded-xl p-6 border border-white/5">
-                            <div className="text-white/50 text-sm mb-2">Data Sources</div>
-                            <div className="text-3xl font-bold">{success ? 1 : 0}</div>
-                        </div>
-                        <div className="bg-black/20 rounded-xl p-6 border border-white/5">
-                            <div className="text-white/50 text-sm mb-2">Insights Generated</div>
-                            <div className="text-3xl font-bold">128</div>
-                        </div>
-                    </div>
-
-                    <div className="mt-8 flex items-center justify-center h-[150px] bg-black/10 rounded-xl border border-white/5 text-white/40">
-                        Interactive Data Insights will appear here
-                    </div>
+                    {error && <div style={{ marginTop: '1rem', color: '#ef4444', fontSize: '0.8rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem' }}><AlertCircle size={14} /> {error}</div>}
                 </div>
             </div>
+        );
+    }
+
+    // ─── Dashboard ───
+    return (
+        <div style={{ flex: 1, padding: '1.5rem 2rem', overflowY: 'auto', height: '100vh' }}>
+            {/* Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+                <div>
+                    <h1 style={{ fontSize: '1.35rem', fontWeight: 700, color: '#f1f5f9', marginBottom: '0.2rem' }}>
+                        📊 {analysis.dashboard_title}
+                    </h1>
+                    <p style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.35)' }}>
+                        {analysis.row_count.toLocaleString()} rows · {analysis.col_count} columns · Auto-generated
+                    </p>
+                </div>
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    <input ref={fileInputRef} type="file" accept=".csv,.xlsx" onChange={handleFileChange} style={{ display: 'none' }} />
+                    <button onClick={handleBrowseClick} style={{
+                        padding: '0.4rem 0.75rem', background: 'rgba(255,255,255,0.05)',
+                        border: '1px solid rgba(255,255,255,0.1)', borderRadius: '0.4rem',
+                        color: 'rgba(255,255,255,0.6)', fontSize: '0.75rem', cursor: 'pointer',
+                        display: 'flex', alignItems: 'center', gap: '0.3rem'
+                    }}>
+                        <UploadCloud size={13} /> New Dataset
+                    </button>
+                </div>
+            </div>
+
+            {/* Floating upload toast */}
+            {file && (
+                <div style={{
+                    position: 'fixed', bottom: '1.5rem', left: '50%', transform: 'translateX(-50%)', zIndex: 100,
+                    background: '#1a1d2e', border: '1px solid rgba(109,40,217,0.4)', borderRadius: '0.75rem',
+                    padding: '0.75rem 1.25rem', display: 'flex', alignItems: 'center', gap: '0.75rem',
+                    boxShadow: '0 10px 40px rgba(0,0,0,0.5)', fontSize: '0.8rem'
+                }}>
+                    📄 {file.name}
+                    <button onClick={handleUpload} disabled={uploading} style={{
+                        padding: '0.35rem 0.75rem', background: '#6d28d9', border: 'none',
+                        borderRadius: '0.4rem', color: '#fff', cursor: 'pointer', fontSize: '0.75rem'
+                    }}>
+                        {uploading ? 'Analyzing...' : 'Generate'}
+                    </button>
+                </div>
+            )}
+
+            {/* Filters */}
+            {analysis.filters?.length > 0 && (
+                <FilterBar filters={analysis.filters} activeFilters={activeFilters} onFilterChange={handleFilterChange} />
+            )}
+
+            {/* KPIs */}
+            <KPICards kpis={analysis.kpis} />
+
+            {/* Gauge + Chart Row */}
+            {gauges.length > 0 && (
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '1rem', marginBottom: '1rem' }}>
+                    <GaugeChart {...gauges[0]} />
+                    {charts.length > 0 && <AutoChart config={charts[0]} />}
+                </div>
+            )}
+
+            {/* Charts Grid — 2 columns */}
+            {charts.length > (gauges.length > 0 ? 1 : 0) && (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '1rem', marginBottom: '1rem' }}>
+                    {charts.slice(gauges.length > 0 ? 1 : 0).map((c, i) => (
+                        <AutoChart key={i} config={c} />
+                    ))}
+                </div>
+            )}
+
+            {/* Data Table */}
+            <DataTable columns={analysis.column_names} data={analysis.data_preview} />
         </div>
     );
 };

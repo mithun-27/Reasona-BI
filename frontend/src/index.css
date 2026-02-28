@@ -1,25 +1,70 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 
-@layer base {
-  body {
-    @apply bg-background text-white m-0 min-h-screen font-sans antialiased;
-    background-image: radial-gradient(circle at 15% 50%, rgba(109, 40, 217, 0.15), transparent 25%),
-                      radial-gradient(circle at 85% 30%, rgba(14, 165, 233, 0.15), transparent 25%);
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
   }
 }
 
-@layer components {
-  .glass-panel {
-    @apply bg-surface backdrop-blur-lg border border-surfaceBorder rounded-2xl shadow-xl;
+@keyframes pulse {
+
+  0%,
+  100% {
+    opacity: 0.3;
   }
-  
-  .btn-primary {
-    @apply px-4 py-2 bg-primary hover:bg-violet-600 transition-colors rounded-lg font-medium text-sm shadow-lg shadow-primary/30;
+
+  50% {
+    opacity: 1;
   }
-  
-  .input-glass {
-    @apply bg-black/20 border border-white/10 rounded-lg px-4 py-2 focus:outline-none focus:border-primary/50 text-white placeholder-white/40;
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
   }
+
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+*,
+*::before,
+*::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  background-color: #0a0c15;
+  color: #e2e8f0;
+  min-height: 100vh;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Premium scrollbar */
+::-webkit-scrollbar {
+  width: 5px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.2);
 }

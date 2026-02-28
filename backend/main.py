@@ -6,6 +6,8 @@ from dotenv import load_dotenv
 
 from api.chat import router as chat_router
 from api.upload import router as upload_router
+from api.stats import router as stats_router
+from api.analysis_api import router as analysis_router
 
 load_dotenv()
 
@@ -21,6 +23,8 @@ app.add_middleware(
 
 app.include_router(chat_router, prefix="/api", tags=["chat"])
 app.include_router(upload_router, prefix="/api", tags=["upload"])
+app.include_router(stats_router, prefix="/api", tags=["stats"])
+app.include_router(analysis_router, prefix="/api", tags=["analysis"])
 
 @app.get("/health")
 def health_check():

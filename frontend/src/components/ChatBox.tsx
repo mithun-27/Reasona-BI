@@ -1,13 +1,22 @@
-import React, { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Send, Bot, User, Sparkles } from 'lucide-react';
-import ReactMarkdown from 'react-markdown';
+
+interface Message {
+    role: 'user' | 'agent';
+    content: string;
+}
 
 export const ChatBox = () => {
-    const [messages, setMessages] = useState([
+    const [messages, setMessages] = useState<Message[]>([
         { role: 'agent', content: "Hello, I'm your ReasonaBI Agent. I've analyzed your data sources. What insights would you like to uncover today?" }
     ]);
     const [input, setInput] = useState('');
     const [isLoading, setIsLoading] = useState(false);
+    const messagesEndRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }, [messages]);
 
     const sendMessage = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -21,9 +30,7 @@ export const ChatBox = () => {
         try {
             const res = await fetch('http://localhost:8000/api/chat', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ message: userMsg })
             });
 
@@ -32,82 +39,141 @@ export const ChatBox = () => {
                 role: 'agent',
                 content: data.reply || "I encountered an error analyzing that request."
             }]);
-        } catch (err) {
-            setMessages(prev => [...prev, { role: 'agent', content: "Connection error with reasoning engine." }]);
+        } catch {
+            setMessages(prev => [...prev, { role: 'agent', content: "Connection error with reasoning engine. Is the backend running?" }]);
         } finally {
             setIsLoading(false);
         }
     };
 
-    return (
-        <div className="w-[450px] glass-panel h-[calc(100vh-2rem)] flex flex-col m-4 relative overflow-hidden flex-shrink-0">
-            <div className="absolute top-0 left-0 w-full h-[60px] bg-gradient-to-b from-primary/10 to-transparent pointer-events-none z-0"></div>
+    const panelStyle: React.CSSProperties = {
+        width: '420px', flexShrink: 0, margin: '1rem',
+        background: 'rgba(255,255,255,0.05)', backdropFilter: 'blur(16px)',
+        border: '1px solid rgba(255,255,255,0.1)', borderRadius: '1rem',
+        height: 'calc(100vh - 2rem)', display: 'flex', flexDirection: 'column',
+        overflow: 'hidden', position: 'relative'
+    };
 
-            <div className="p-6 border-b border-white/10 relative z-10 flex items-center gap-3">
-                <div className="relative">
-                    <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-primary to-secondary flex items-center justify-center p-[2px]">
-                        <div className="w-full h-full bg-background rounded-full flex items-center justify-center">
-                            <Sparkles size={16} className="text-secondary" />
+    return (
+        <div style={panelStyle}>
+            {/* Header */}
+            <div style={{
+                padding: '1.5rem', borderBottom: '1px solid rgba(255,255,255,0.1)',
+                display: 'flex', alignItems: 'center', gap: '0.75rem', zIndex: 10
+            }}>
+                <div style={{ position: 'relative' }}>
+                    <div style={{
+                        width: '2.5rem', height: '2.5rem', borderRadius: '50%',
+                        background: 'linear-gradient(135deg, #6d28d9, #0ea5e9)',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2px'
+                    }}>
+                        <div style={{
+                            width: '100%', height: '100%', backgroundColor: '#0f111a',
+                            borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center'
+                        }}>
+                            <Sparkles size={16} color="#0ea5e9" />
                         </div>
                     </div>
-                    <div className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-400 rounded-full border-2 border-background"></div>
+                    <div style={{
+                        position: 'absolute', bottom: 0, right: 0,
+                        width: '0.75rem', height: '0.75rem', backgroundColor: '#34d399',
+                        borderRadius: '50%', border: '2px solid #0f111a'
+                    }}></div>
                 </div>
                 <div>
-                    <h2 className="font-semibold text-white">Insight Assistant</h2>
-                    <div className="text-xs text-white/50">Online • Capable of auto-charting</div>
+                    <h2 style={{ fontWeight: 600, color: '#fff', margin: 0 }}>Insight Assistant</h2>
+                    <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)' }}>Online • Capable of auto-charting</div>
                 </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-6 custom-scrollbar">
+            {/* Messages */}
+            <div style={{ flex: 1, overflowY: 'auto', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
                 {messages.map((msg, idx) => (
-                    <div key={idx} className={`flex gap-4 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>
-                        <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 mt-1 shadow-lg ${msg.role === 'user' ? 'bg-white/10 text-white/70' : 'bg-primary/20 text-primary border border-primary/30'
-                            }`}>
+                    <div key={idx} style={{ display: 'flex', gap: '1rem', flexDirection: msg.role === 'user' ? 'row-reverse' : 'row' }}>
+                        <div style={{
+                            width: '2rem', height: '2rem', borderRadius: '50%',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            flexShrink: 0, marginTop: '0.25rem',
+                            background: msg.role === 'user' ? 'rgba(255,255,255,0.1)' : 'rgba(109,40,217,0.2)',
+                            color: msg.role === 'user' ? 'rgba(255,255,255,0.7)' : '#6d28d9',
+                            border: msg.role === 'agent' ? '1px solid rgba(109,40,217,0.3)' : 'none'
+                        }}>
                             {msg.role === 'user' ? <User size={14} /> : <Bot size={14} />}
                         </div>
-
-                        <div className={`px-5 py-3 rounded-2xl max-w-[80%] text-sm leading-relaxed ${msg.role === 'user'
-                                ? 'bg-gradient-to-bl from-primary to-violet-600 text-white rounded-tr-sm shadow-xl shadow-primary/20'
-                                : 'bg-white/5 border border-white/10 rounded-tl-sm backdrop-blur-sm'
-                            }`}>
-                            <ReactMarkdown className="prose prose-invert prose-p:leading-relaxed prose-pre:bg-black/30 prose-pre:border prose-pre:border-white/10 prose-pre:p-4 prose-pre:rounded-xl max-w-none text-sm whitespace-pre-wrap">
-                                {msg.content}
-                            </ReactMarkdown>
+                        <div style={{
+                            padding: '0.75rem 1.25rem', borderRadius: '1rem', maxWidth: '80%',
+                            fontSize: '0.875rem', lineHeight: 1.6,
+                            ...(msg.role === 'user'
+                                ? {
+                                    background: 'linear-gradient(135deg, #6d28d9, #7c3aed)',
+                                    color: '#fff', borderTopRightRadius: '0.25rem',
+                                    boxShadow: '0 4px 15px rgba(109,40,217,0.2)'
+                                }
+                                : {
+                                    background: 'rgba(255,255,255,0.05)', color: '#fff',
+                                    border: '1px solid rgba(255,255,255,0.1)',
+                                    borderTopLeftRadius: '0.25rem'
+                                })
+                        }}>
+                            {msg.content}
                         </div>
                     </div>
                 ))}
                 {isLoading && (
-                    <div className="flex gap-4">
-                        <div className="w-8 h-8 rounded-full bg-primary/20 text-primary border border-primary/30 flex items-center justify-center flex-shrink-0 mt-1 shadow-lg">
+                    <div style={{ display: 'flex', gap: '1rem' }}>
+                        <div style={{
+                            width: '2rem', height: '2rem', borderRadius: '50%',
+                            background: 'rgba(109,40,217,0.2)', color: '#6d28d9',
+                            border: '1px solid rgba(109,40,217,0.3)',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            flexShrink: 0
+                        }}>
                             <Bot size={14} />
                         </div>
-                        <div className="px-5 py-4 rounded-2xl bg-white/5 border border-white/10 flex items-center gap-2 rounded-tl-sm">
-                            <div className="w-2 h-2 bg-primary rounded-full animate-bounce [animation-delay:-0.3s]"></div>
-                            <div className="w-2 h-2 bg-primary rounded-full animate-bounce [animation-delay:-0.15s]"></div>
-                            <div className="w-2 h-2 bg-primary rounded-full animate-bounce"></div>
+                        <div style={{
+                            padding: '1rem 1.25rem', borderRadius: '1rem',
+                            background: 'rgba(255,255,255,0.05)',
+                            border: '1px solid rgba(255,255,255,0.1)',
+                            display: 'flex', gap: '0.5rem', alignItems: 'center'
+                        }}>
+                            <span style={{ animation: 'pulse 1.5s infinite' }}>●</span>
+                            <span style={{ animation: 'pulse 1.5s infinite 0.3s' }}>●</span>
+                            <span style={{ animation: 'pulse 1.5s infinite 0.6s' }}>●</span>
                         </div>
                     </div>
                 )}
+                <div ref={messagesEndRef} />
             </div>
 
-            <div className="p-4 border-t border-white/10 bg-black/20 backdrop-blur-md">
-                <form onSubmit={sendMessage} className="relative flex items-center">
+            {/* Input */}
+            <div style={{ padding: '1rem', borderTop: '1px solid rgba(255,255,255,0.1)', background: 'rgba(0,0,0,0.2)' }}>
+                <form onSubmit={sendMessage} style={{ display: 'flex', alignItems: 'center', position: 'relative' }}>
                     <input
                         type="text"
                         value={input}
                         onChange={(e) => setInput(e.target.value)}
                         placeholder="Ask about your data..."
-                        className="w-full bg-white/5 border border-white/10 rounded-xl pr-12 pl-4 py-3 text-sm focus:outline-none focus:border-primary/50 focus:bg-white/10 transition-all text-white placeholder-white/40"
+                        style={{
+                            width: '100%', background: 'rgba(255,255,255,0.05)',
+                            border: '1px solid rgba(255,255,255,0.1)', borderRadius: '0.75rem',
+                            paddingRight: '3rem', paddingLeft: '1rem', paddingTop: '0.75rem', paddingBottom: '0.75rem',
+                            fontSize: '0.875rem', color: '#fff', outline: 'none'
+                        }}
                     />
                     <button
                         type="submit"
                         disabled={!input.trim() || isLoading}
-                        className="absolute right-2 p-2 bg-primary rounded-lg text-white hover:bg-violet-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-primary/20"
+                        style={{
+                            position: 'absolute', right: '0.5rem', padding: '0.5rem',
+                            backgroundColor: '#6d28d9', borderRadius: '0.5rem',
+                            color: '#fff', border: 'none', cursor: 'pointer',
+                            opacity: (!input.trim() || isLoading) ? 0.5 : 1
+                        }}
                     >
                         <Send size={16} />
                     </button>
                 </form>
-                <div className="text-[10px] text-center mt-3 text-white/30 truncate">
+                <div style={{ fontSize: '0.6rem', textAlign: 'center', marginTop: '0.75rem', color: 'rgba(255,255,255,0.3)' }}>
                     ReasonaBI can make mistakes. Verify critical business insights.
                 </div>
             </div>
