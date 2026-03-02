@@ -1,10 +1,15 @@
 import { LayoutDashboard, Database, MessageSquare, Settings, Sparkles } from 'lucide-react';
 
-export const Sidebar = () => {
+interface SidebarProps {
+    activeTab: string;
+    onTabChange: (tab: string) => void;
+    onOpenChat: () => void;
+}
+
+export const Sidebar = ({ activeTab, onTabChange, onOpenChat }: SidebarProps) => {
     const navItems = [
-        { label: 'Dashboard', icon: <LayoutDashboard size={18} />, active: true },
-        { label: 'Data Sources', icon: <Database size={18} />, active: false },
-        { label: 'Agent Chat', icon: <MessageSquare size={18} />, active: false },
+        { label: 'Dashboard', id: 'dashboard', icon: <LayoutDashboard size={18} /> },
+        { label: 'Data Sources', id: 'data_sources', icon: <Database size={18} /> },
     ];
 
     return (
@@ -34,20 +39,44 @@ export const Sidebar = () => {
 
             {/* Nav */}
             <nav style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', padding: '0 0.75rem' }}>
-                {navItems.map((item, i) => (
-                    <button key={i} style={{
+                {navItems.map((item) => {
+                    const isActive = activeTab === item.id;
+                    return (
+                        <button
+                            key={item.id}
+                            onClick={() => onTabChange(item.id)}
+                            style={{
+                                display: 'flex', alignItems: 'center', gap: '0.75rem',
+                                padding: '0.65rem 0.75rem', borderRadius: '0.5rem',
+                                border: 'none', cursor: 'pointer', width: '100%', textAlign: 'left',
+                                fontSize: '0.85rem', fontWeight: isActive ? 600 : 400,
+                                background: isActive ? 'rgba(109,40,217,0.15)' : 'transparent',
+                                color: isActive ? '#a78bfa' : 'rgba(255,255,255,0.5)',
+                                transition: 'all 0.15s'
+                            }}
+                        >
+                            <span style={{ opacity: isActive ? 1 : 0.6 }}>{item.icon}</span>
+                            {item.label}
+                        </button>
+                    );
+                })}
+
+                {/* Agent Chat Button */}
+                <button
+                    onClick={onOpenChat}
+                    style={{
                         display: 'flex', alignItems: 'center', gap: '0.75rem',
                         padding: '0.65rem 0.75rem', borderRadius: '0.5rem',
                         border: 'none', cursor: 'pointer', width: '100%', textAlign: 'left',
-                        fontSize: '0.85rem', fontWeight: item.active ? 600 : 400,
-                        background: item.active ? 'rgba(109,40,217,0.15)' : 'transparent',
-                        color: item.active ? '#a78bfa' : 'rgba(255,255,255,0.5)',
+                        fontSize: '0.85rem', fontWeight: 400,
+                        background: 'transparent',
+                        color: 'rgba(255,255,255,0.5)',
                         transition: 'all 0.15s'
-                    }}>
-                        <span style={{ opacity: item.active ? 1 : 0.6 }}>{item.icon}</span>
-                        {item.label}
-                    </button>
-                ))}
+                    }}
+                >
+                    <span style={{ opacity: 0.6 }}><MessageSquare size={18} /></span>
+                    Agent Chat
+                </button>
             </nav>
 
             {/* Bottom */}

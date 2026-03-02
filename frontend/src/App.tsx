@@ -2,10 +2,16 @@ import { useState } from 'react';
 import { Sidebar } from './components/Sidebar';
 import { Dashboard } from './components/Dashboard';
 import { ChatBox } from './components/ChatBox';
-import { MessageSquare, X } from 'lucide-react';
+import { MessageSquare, X, Database } from 'lucide-react';
 
 function App() {
   const [chatOpen, setChatOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState('dashboard');
+  const [customCharts, setCustomCharts] = useState<any[]>([]);
+
+  const handleAddChart = (chart: any) => {
+    setCustomCharts(prev => [...prev, chart]);
+  };
 
   return (
     <div style={{
@@ -13,8 +19,27 @@ function App() {
       minHeight: '100vh', color: '#fff', width: '100%',
       overflow: 'hidden', fontFamily: "'Inter', system-ui, -apple-system, sans-serif",
     }}>
-      <Sidebar />
-      <Dashboard />
+      <Sidebar
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
+        onOpenChat={() => setChatOpen(true)}
+      />
+
+      {activeTab === 'dashboard' ? (
+        <Dashboard customCharts={customCharts} />
+      ) : (
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', backgroundColor: '#0a0c15' }}>
+          <Database size={48} color="rgba(255,255,255,0.1)" style={{ marginBottom: '1rem' }} />
+          <h2 style={{ fontSize: '1.25rem', fontWeight: 600, color: 'rgba(255,255,255,0.8)', marginBottom: '0.5rem' }}>Data Sources</h2>
+          <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.9rem' }}>Detailed data management coming soon.</p>
+          <button
+            onClick={() => setActiveTab('dashboard')}
+            style={{ marginTop: '1.5rem', padding: '0.5rem 1rem', background: '#6d28d9', color: '#fff', border: 'none', borderRadius: '0.5rem', cursor: 'pointer' }}
+          >
+            Return to Dashboard
+          </button>
+        </div>
+      )}
 
       {/* Chat Toggle Button */}
       {!chatOpen && (
@@ -55,7 +80,7 @@ function App() {
           >
             <X size={14} />
           </button>
-          <ChatBox />
+          <ChatBox onAddChart={handleAddChart} />
         </div>
       )}
     </div>

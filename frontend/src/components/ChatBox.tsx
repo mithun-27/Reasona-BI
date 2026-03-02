@@ -1,12 +1,18 @@
 import { useState, useRef, useEffect } from 'react';
-import { Send, Bot, User, Sparkles } from 'lucide-react';
+import { Send, Bot, User, Sparkles, Pin } from 'lucide-react';
+import { AutoChart } from './AutoChart';
 
 interface Message {
     role: 'user' | 'agent';
     content: string;
+    chartConfig?: any;
 }
 
-export const ChatBox = () => {
+interface ChatBoxProps {
+    onAddChart?: (chart: any) => void;
+}
+
+export const ChatBox = ({ onAddChart }: ChatBoxProps) => {
     const [messages, setMessages] = useState<Message[]>([
         { role: 'agent', content: "Hello, I'm your ReasonaBI Agent. I've analyzed your data sources. What insights would you like to uncover today?" }
     ]);
@@ -37,7 +43,8 @@ export const ChatBox = () => {
             const data = await res.json();
             setMessages(prev => [...prev, {
                 role: 'agent',
-                content: data.reply || "I encountered an error analyzing that request."
+                content: data.reply || "I encountered an error analyzing that request.",
+                chartConfig: data.insights?.chart
             }]);
         } catch {
             setMessages(prev => [...prev, { role: 'agent', content: "Connection error with reasoning engine. Is the backend running?" }]);
@@ -46,11 +53,18 @@ export const ChatBox = () => {
         }
     };
 
+    const handlePinChart = (config: any) => {
+        if (onAddChart) {
+            onAddChart(config);
+            alert("Added to Dashboard!");
+        }
+    };
+
     const panelStyle: React.CSSProperties = {
-        width: '420px', flexShrink: 0, margin: '1rem',
-        background: 'rgba(255,255,255,0.05)', backdropFilter: 'blur(16px)',
+        width: '100%',
+        background: 'rgba(15,17,26,0.95)', backdropFilter: 'blur(16px)',
         border: '1px solid rgba(255,255,255,0.1)', borderRadius: '1rem',
-        height: 'calc(100vh - 2rem)', display: 'flex', flexDirection: 'column',
+        height: '100%', display: 'flex', flexDirection: 'column',
         overflow: 'hidden', position: 'relative'
     };
 
@@ -58,7 +72,7 @@ export const ChatBox = () => {
         <div style={panelStyle}>
             {/* Header */}
             <div style={{
-                padding: '1.5rem', borderBottom: '1px solid rgba(255,255,255,0.1)',
+                padding: '1.25rem', borderBottom: '1px solid rgba(255,255,255,0.1)',
                 display: 'flex', alignItems: 'center', gap: '0.75rem', zIndex: 10
             }}>
                 <div style={{ position: 'relative' }}>
@@ -74,22 +88,17 @@ export const ChatBox = () => {
                             <Sparkles size={16} color="#0ea5e9" />
                         </div>
                     </div>
-                    <div style={{
-                        position: 'absolute', bottom: 0, right: 0,
-                        width: '0.75rem', height: '0.75rem', backgroundColor: '#34d399',
-                        borderRadius: '50%', border: '2px solid #0f111a'
-                    }}></div>
                 </div>
                 <div>
-                    <h2 style={{ fontWeight: 600, color: '#fff', margin: 0 }}>Insight Assistant</h2>
-                    <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)' }}>Online • Capable of auto-charting</div>
+                    <h2 style={{ fontWeight: 600, color: '#fff', margin: 0, fontSize: '1rem' }}>Insight Assistant</h2>
+                    <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.5)' }}>Online • AI Reasoning</div>
                 </div>
             </div>
 
             {/* Messages */}
             <div style={{ flex: 1, overflowY: 'auto', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
                 {messages.map((msg, idx) => (
-                    <div key={idx} style={{ display: 'flex', gap: '1rem', flexDirection: msg.role === 'user' ? 'row-reverse' : 'row' }}>
+                    <div key={idx} style={{ display: 'flex', gap: '0.75rem', flexDirection: msg.role === 'user' ? 'row-reverse' : 'row' }}>
                         <div style={{
                             width: '2rem', height: '2rem', borderRadius: '50%',
                             display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -101,21 +110,45 @@ export const ChatBox = () => {
                             {msg.role === 'user' ? <User size={14} /> : <Bot size={14} />}
                         </div>
                         <div style={{
-                            padding: '0.75rem 1.25rem', borderRadius: '1rem', maxWidth: '80%',
-                            fontSize: '0.875rem', lineHeight: 1.6,
-                            ...(msg.role === 'user'
-                                ? {
-                                    background: 'linear-gradient(135deg, #6d28d9, #7c3aed)',
-                                    color: '#fff', borderTopRightRadius: '0.25rem',
-                                    boxShadow: '0 4px 15px rgba(109,40,217,0.2)'
-                                }
-                                : {
-                                    background: 'rgba(255,255,255,0.05)', color: '#fff',
-                                    border: '1px solid rgba(255,255,255,0.1)',
-                                    borderTopLeftRadius: '0.25rem'
-                                })
+                            maxWidth: '85%', display: 'flex', flexDirection: 'column', gap: '0.75rem',
+                            alignItems: msg.role === 'user' ? 'flex-end' : 'flex-start'
                         }}>
-                            {msg.content}
+                            <div style={{
+                                padding: '0.75rem 1.25rem', borderRadius: '1rem',
+                                fontSize: '0.85rem', lineHeight: 1.6,
+                                ...(msg.role === 'user'
+                                    ? {
+                                        background: 'linear-gradient(135deg, #6d28d9, #7c3aed)',
+                                        color: '#fff', borderTopRightRadius: '0.25rem',
+                                    }
+                                    : {
+                                        background: 'rgba(255,255,255,0.05)', color: '#fff',
+                                        border: '1px solid rgba(255,255,255,0.1)',
+                                        borderTopLeftRadius: '0.25rem'
+                                    })
+                            }}>
+                                {msg.content}
+                            </div>
+
+                            {msg.chartConfig && (
+                                <div style={{ width: '100%', minWidth: '300px', maxWidth: '340px' }}>
+                                    <AutoChart config={msg.chartConfig} />
+                                    <button
+                                        onClick={() => handlePinChart(msg.chartConfig)}
+                                        style={{
+                                            marginTop: '0.5rem', padding: '0.4rem 0.75rem',
+                                            background: 'rgba(109,40,217,0.2)', border: '1px solid rgba(109,40,217,0.4)',
+                                            borderRadius: '0.5rem', color: '#a78bfa', fontSize: '0.7rem',
+                                            cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.4rem',
+                                            transition: 'all 0.2s'
+                                        }}
+                                        onMouseEnter={e => (e.currentTarget.style.background = 'rgba(109,40,217,0.3)')}
+                                        onMouseLeave={e => (e.currentTarget.style.background = 'rgba(109,40,217,0.2)')}
+                                    >
+                                        <Pin size={12} /> Add to Dashboard
+                                    </button>
+                                </div>
+                            )}
                         </div>
                     </div>
                 ))}

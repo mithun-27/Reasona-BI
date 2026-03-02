@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { UploadCloud, AlertCircle, Loader } from 'lucide-react';
+import { UploadCloud, AlertCircle, Loader, Sparkles } from 'lucide-react';
 import { KPICards } from './KPICards';
 import { AutoChart } from './AutoChart';
 import { GaugeChart } from './GaugeChart';
@@ -18,7 +18,11 @@ interface AnalysisData {
     col_count: number;
 }
 
-export const Dashboard = () => {
+interface DashboardProps {
+    customCharts?: any[];
+}
+
+export const Dashboard = ({ customCharts = [] }: DashboardProps) => {
     const [file, setFile] = useState<File | null>(null);
     const [uploading, setUploading] = useState(false);
     const [error, setError] = useState('');
@@ -34,6 +38,32 @@ export const Dashboard = () => {
         setActiveFilters(p => ({ ...p, [col]: vals }));
     };
 
+    const updateAnalysis = async (filters: Record<string, string[]>) => {
+        if (!analysis?.table_name) return;
+        setUploading(true);
+        try {
+            const res = await fetch(`http://localhost:8000/api/analysis/${analysis.table_name}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(filters)
+            });
+            if (res.ok) {
+                const data = await res.json();
+                setAnalysis(data);
+            }
+        } catch (err) {
+            console.error("Filter update failed", err);
+        } finally {
+            setUploading(false);
+        }
+    };
+
+    useEffect(() => {
+        if (analysis?.table_name) {
+            updateAnalysis(activeFilters);
+        }
+    }, [activeFilters]);
+
     const handleUpload = async () => {
         if (!file) return;
         setUploading(true); setError('');
@@ -45,7 +75,11 @@ export const Dashboard = () => {
                 const data = await res.json();
                 setFile(null);
                 if (fileInputRef.current) fileInputRef.current.value = '';
-                if (data.analysis) { setAnalysis(data.analysis); setActiveFilters({}); }
+                if (data.analysis) {
+                    // Set analysis first, which might trigger effect, so reset filters at same time
+                    setAnalysis(data.analysis);
+                    setActiveFilters({});
+                }
             } else {
                 const e = await res.json();
                 setError(e.detail || 'Upload failed');
@@ -103,7 +137,7 @@ export const Dashboard = () => {
 
     // ─── Dashboard ───
     return (
-        <div style={{ flex: 1, padding: '1.5rem 2rem', overflowY: 'auto', height: '100vh' }}>
+        <div style={{ flex: 1, padding: '1.5rem 2rem', overflowY: 'auto', height: '100vh', position: 'relative' }}>
             {/* Header */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
                 <div>
@@ -158,6 +192,20 @@ export const Dashboard = () => {
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '1rem', marginBottom: '1rem' }}>
                     <GaugeChart {...gauges[0]} />
                     {charts.length > 0 && <AutoChart config={charts[0]} />}
+                </div>
+            )}
+
+            {/* AI Custom Charts Section */}
+            {customCharts.length > 0 && (
+                <div style={{ marginBottom: '1rem' }}>
+                    <h3 style={{ fontSize: '0.8rem', fontWeight: 600, color: '#a78bfa', marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <Sparkles size={14} /> AI Discovered Insights
+                    </h3>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '1rem' }}>
+                        {customCharts.map((c, i) => (
+                            <AutoChart key={`custom-${i}`} config={c} />
+                        ))}
+                    </div>
                 </div>
             )}
 

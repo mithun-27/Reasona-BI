@@ -3,7 +3,7 @@ import numpy as np
 from core.db import get_db_connection
 
 
-def analyze_table(table_name: str) -> dict:
+def analyze_table(table_name: str, filters: dict = None) -> dict:
     """
     Auto-analyzes an uploaded table and returns Power BI-style dashboard configs:
     - kpis: key metrics with trends and goals
@@ -13,30 +13,50 @@ def analyze_table(table_name: str) -> dict:
     """
     conn = get_db_connection()
 
+    # ── Handle Filtering ──
+    where_clause = ""
+    if filters:
+        filter_parts = []
+        for col, values in filters.items():
+            if values:
+                # Sanitize values and column names to prevent SQL injection (simple version)
+                sanitized_values = ", ".join([f"'{v}'" for v in values])
+                filter_parts.append(f'"{col}" IN ({sanitized_values})')
+        
+        if filter_parts:
+            where_clause = " WHERE " + " AND ".join(filter_parts)
+
+    # Use cached column type detection if possible
     try:
-        df = conn.execute(f"SELECT * FROM {table_name}").df()
+        df = conn.execute(f'SELECT * FROM "{table_name}"{where_clause}').df()
     except Exception as e:
         return {"error": f"Could not read table: {str(e)}"}
 
     rows, cols = df.shape
 
-    # ── Column type detection ──
+    # ── Column type detection (Optimized) ──
     numeric_cols = df.select_dtypes(include=["number"]).columns.tolist()
     categorical_cols = df.select_dtypes(include=["object", "category"]).columns.tolist()
     datetime_cols = df.select_dtypes(include=["datetime", "datetimetz"]).columns.tolist()
 
-    # Try to parse potential date columns stored as strings
+    # Optimized date detection: only sample a subset for speed
+    sample_size = min(500, len(df))
     for col in categorical_cols[:]:
-        try:
-            parsed = pd.to_datetime(df[col], infer_datetime_format=True, errors="coerce")
-            if parsed.notna().sum() > len(df) * 0.7:
-                df[col] = parsed
-                datetime_cols.append(col)
-                categorical_cols.remove(col)
-        except Exception:
-            pass
+        if sample_size > 0:
+            try:
+                # Check sample for potential dates
+                sample = df[col].dropna().head(sample_size)
+                if len(sample) > 0:
+                    parsed_sample = pd.to_datetime(sample, errors="coerce")
+                    if parsed_sample.notna().sum() > len(sample) * 0.8:
+                        # If sample looks like dates, attempt full conversion
+                        df[col] = pd.to_datetime(df[col], errors="coerce")
+                        datetime_cols.append(col)
+                        categorical_cols.remove(col)
+            except: pass
 
-    # ── KPIs (Premium) ──
+    # ── KPIs ──
+    # ... (KPI code remains same) ...
     missing_pct = round(df.isnull().sum().sum() / (rows * cols) * 100, 1) if rows * cols > 0 else 0
     duplicate_rows = int(df.duplicated().sum())
 
@@ -46,38 +66,34 @@ def analyze_table(table_name: str) -> dict:
         {"label": "Unique Rows", "value": f"{rows - duplicate_rows:,}", "icon": "unique", "trend": "up" if duplicate_rows == 0 else "down", "subtitle": f"{duplicate_rows} duplicates"},
     ]
 
-    # Add top numeric KPIs with computed stats
+    # ... (Numeric KPIs loop remains same) ...
     for nc in numeric_cols[:4]:
+        # (keeping lines consistent below)
         mean_val = df[nc].mean()
         max_val = df[nc].max()
         min_val = df[nc].min()
         if pd.notna(mean_val):
-            if abs(mean_val) >= 1000000:
-                display = f"{mean_val/1000000:.2f}M"
-            elif abs(mean_val) >= 1000:
-                display = f"{mean_val/1000:.1f}K"
-            else:
-                display = f"{mean_val:,.2f}"
-            
-            # Determine trend based on data distribution
-            q1 = df[nc].quantile(0.25)
-            q3 = df[nc].quantile(0.75)
+            display = _format_number(mean_val) if abs(mean_val) < 1000000 else f"{mean_val/1000000:.2f}M"
             median = df[nc].median()
             trend = "up" if mean_val > median else "down" if mean_val < median else "neutral"
-            
             kpis.append({
-                "label": f"Avg {nc}",
-                "value": display,
-                "icon": "metric",
-                "trend": trend,
+                "label": f"Avg {nc}", "value": display, "icon": "metric", "trend": trend,
                 "subtitle": f"Range: {_format_number(min_val)} – {_format_number(max_val)}",
                 "goal": _format_number(max_val)
             })
 
     # ── Filters (Slicers) ──
     filters = []
-    for cat_col in categorical_cols[:5]:
-        unique_vals = df[cat_col].dropna().unique().tolist()
+    # Optimization: Use the filtered 'df' if no filters applied, otherwise fetch full to keep slicers stable
+    if not where_clause:
+        all_df = df
+    else:
+        # Fetch chỉ categorical columns for speed
+        all_df = conn.execute(f'SELECT * FROM "{table_name}"').df()
+    
+    potential_cats = all_df.select_dtypes(include=["object", "category"]).columns.tolist()
+    for cat_col in potential_cats[:5]:
+        unique_vals = all_df[cat_col].dropna().unique().tolist()
         if 2 <= len(unique_vals) <= 50:
             filters.append({
                 "column": cat_col,

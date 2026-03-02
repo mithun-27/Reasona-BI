@@ -71,7 +71,7 @@ export const AutoChart = ({ config }: { config: ChartConfig }) => {
                             <XAxis dataKey={xKey} tick={AX} angle={-30} textAnchor="end" interval="preserveStartEnd" height={55} />
                             <YAxis tick={AX} width={45} />
                             <Tooltip contentStyle={TT} />
-                            <Area type="monotone" dataKey={yKey} stroke={color} strokeWidth={2} fill={`url(#ag-${title})`} dot={false} activeDot={{ r: 4, fill: '#fff', stroke: color, strokeWidth: 2 }} />
+                            <Area type="monotone" dataKey={yKey || ''} stroke={color} strokeWidth={2} fill={`url(#ag-${title})`} dot={false} activeDot={{ r: 4, fill: '#fff', stroke: color, strokeWidth: 2 }} />
                         </AreaChart>
                     </ResponsiveContainer>
                 );
@@ -95,10 +95,10 @@ export const AutoChart = ({ config }: { config: ChartConfig }) => {
                 return (
                     <ResponsiveContainer width="100%" height={260}>
                         <PieChart>
-                            <Pie data={data} dataKey="value" nameKey="name" cx="50%" cy="50%"
+                            <Pie data={data} dataKey={yKey || "value"} nameKey={xKey || "name"} cx="50%" cy="50%"
                                 outerRadius={90} innerRadius={type === 'donut' ? 50 : 0}
                                 paddingAngle={type === 'donut' ? 3 : 0}
-                                label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                                label={({ name, percent }) => `${name || 'Unknown'} ${((percent || 0) * 100).toFixed(0)}%`}
                                 labelLine={{ stroke: 'rgba(255,255,255,0.2)' }}
                             >
                                 {data.map((_: any, idx: number) => <Cell key={idx} fill={C[idx % C.length]} />)}

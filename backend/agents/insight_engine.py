@@ -1,4 +1,6 @@
 import json
+import pandas as pd
+import numpy as np
 from core.db import get_db_connection
 from core.llm import call_llm
 
@@ -42,12 +44,29 @@ def generate_insights(user_query: str) -> dict:
     {json.dumps(schemas, indent=2)}
     
     Perform the following tasks:
-    1. Identify the SQL query needed to answer this question. Use PostgreSQL/DuckDB syntax. Return only valid SQL, or null if it cannot be answered.
-    2. Provide a narrative explanation addressing the user's question, assuming the query returns relevant data.
-    3. Suggest the most appropriate chart type to visualize this (line, bar, pie, scatter, etc.).
+    1. Identify the EXACT SQL query needed to answer this question. Use PostgreSQL/DuckDB syntax. 
+       - IMPORTANT: ONLY use column names that exist in the schema provided above.
+       - Use 'AS' to give clear names to aggregated columns.
+    2. Provide a narrative explanation addressing the user's question based on the query results.
+    3. If the user asks for a chart or if the data is visualizable, provide a "chart_config" object.
     
-    Respond STRICTLY in JSON format with keys:
-    "sql_query", "narrative", "recommended_chart"
+    Rules for "chart_config":
+    - "type": One of "bar", "line", "pie", "donut", "scatter", "area".
+    - "xKey": MUST be a column name that IS present in your SQL SELECT statement.
+    - "yKey": MUST be a column name that IS present in your SQL SELECT statement.
+    - If it's a count/pie chart, ensure the yKey identifies the numeric count column.
+    
+    Respond in this JSON format:
+    {{
+      "sql_query": "SELECT ...",
+      "narrative": "The data shows...",
+      "chart_config": {{
+        "title": "...",
+        "type": "bar",
+        "xKey": "column_a",
+        "yKey": "column_b"
+      }}
+    }}
     """
     
     messages = [{"role": "system", "content": "You output JSON strictly."}, {"role": "user", "content": prompt}]
@@ -56,20 +75,31 @@ def generate_insights(user_query: str) -> dict:
     
     # Attempt to parse json
     try:
-        # Find json block if fenced
+        # Improved JSON extraction from markdown or raw text
         if "```json" in content:
             content = content.split("```json")[1].split("```")[0].strip()
+        elif "```" in content:
+            content = content.split("```")[1].split("```")[0].strip()
+        
         parsed = json.loads(content)
     except:
         parsed = {"error": "Failed to parse AI structural response", "raw": content}
         
     # Execute SQL if present
     data_result = []
+    chart_data = None
     if parsed.get("sql_query"):
         try:
             df = conn.execute(parsed["sql_query"]).df()
             data_result = df.to_dict(orient="records")
             parsed["execution_success"] = True
+            
+            # If we have a chart config, attach the actual data to it
+            if parsed.get("chart_config"):
+                chart_data = {
+                    **parsed["chart_config"],
+                    "data": _clean_records(df.head(50)) # Limit chat data for performance
+                }
         except Exception as e:
             parsed["execution_success"] = False
             parsed["execution_error"] = str(e)
@@ -79,6 +109,26 @@ def generate_insights(user_query: str) -> dict:
         "insights": {
             "sql": parsed.get("sql_query"),
             "data": data_result,
-            "chart": parsed.get("recommended_chart")
+            "chart": chart_data
         }
     }
+
+
+def _clean_records(df: pd.DataFrame) -> list:
+    """Convert DataFrame to list of dicts with JSON-safe values."""
+    import numpy as np
+    records = df.to_dict(orient="records")
+    cleaned = []
+    for record in records:
+        clean = {}
+        for k, v in record.items():
+            if pd.isna(v):
+                clean[k] = 0
+            elif isinstance(v, (np.integer,)):
+                clean[k] = int(v)
+            elif isinstance(v, (np.floating,)):
+                clean[k] = round(float(v), 2)
+            else:
+                clean[k] = v
+        cleaned.append(clean)
+    return cleaned
